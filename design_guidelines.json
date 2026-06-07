@@ -1,0 +1,126 @@
+{
+  "project_name": "AuraControl - Ultimea A40 Soundbar Remote & BLE Explorer",
+  "theme": "Dark",
+  "archetype": "5 (Luxury / Premium Hardware) + 4 (Swiss / High-Contrast for Terminal)",
+  "design_philosophy": "A dual-identity app. The main controller screens (Remote, EQ) must feel like an expensive, tactile piece of high-end audio equipment (deep blacks, subtle metallic elevations, crisp geometric typography). The BLE Explorer screens must feel like a precision developer tool (dense, high-contrast, terminal-inspired monospaced typography).",
+  "colors": {
+    "background": {
+      "default": "#0A0A0C",
+      "terminal": "#050505",
+      "tab_bar": "rgba(10, 10, 12, 0.85)"
+    },
+    "surface": {
+      "default": "#121215",
+      "elevated": "#1C1C21",
+      "pressed": "#25252C"
+    },
+    "border": {
+      "subtle": "#1F1F24",
+      "strong": "#33333C",
+      "active": "#FFFFFF"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#8E8E98",
+      "tertiary": "#55555C",
+      "terminal_log": "#A3E635",
+      "terminal_uuid": "#71717A"
+    },
+    "status": {
+      "connected": "#10B981",
+      "disconnected": "#EF4444",
+      "warning": "#F59E0B"
+    },
+    "accents": {
+      "primary": "#FFFFFF",
+      "slider_track_active": "#FFFFFF",
+      "slider_track_inactive": "#1F1F24"
+    }
+  },
+  "typography": {
+    "font_families": {
+      "headings": "Manrope, sans-serif",
+      "body": "Manrope, sans-serif",
+      "monospace": "JetBrains Mono, monospace"
+    },
+    "scales": {
+      "h1_hero": "text-4xl tracking-tighter font-light",
+      "h2_section": "text-2xl tracking-tight font-medium",
+      "h3_card": "text-lg tracking-normal font-medium",
+      "body": "text-base tracking-normal font-normal",
+      "label_overline": "text-xs tracking-[0.2em] uppercase font-bold text-[#8E8E98]",
+      "terminal_text": "text-xs tracking-tight font-mono leading-relaxed"
+    }
+  },
+  "spacing_and_layout": {
+    "screen_padding": "px-6 pt-12 pb-24",
+    "gap_small": "gap-3",
+    "gap_medium": "gap-6",
+    "gap_large": "gap-10",
+    "border_radius": {
+      "chips": "rounded-full",
+      "cards": "rounded-2xl",
+      "panels": "rounded-3xl"
+    },
+    "layout_strategy": {
+      "remote_screen": "Centralized, hero-focused layout. The volume dial is the dominant centerpiece, taking up 50% of vertical space, perfectly centered. Bottom half holds secondary controls in a symmetrical grid.",
+      "eq_screen": "Dense, functional layout. Vertical sliders taking up majority of the screen with clear value labels above them.",
+      "explorer_screen": "List-heavy, edge-to-edge terminal layout. Minimal padding for logs to maximize data density."
+    }
+  },
+  "components": {
+    "VolumeDial": {
+      "type": "Interactive Knob",
+      "style": "Large circular element. Outer ring: svg dashed circle (stroke-dasharray) for volume markers. Inner circle: bg-[#121215] with subtle inner shadow to mimic physical depth. Large H1 text in the absolute center.",
+      "interaction": "Pan gesture up/down or circular rotation (if using react-native-gesture-handler).",
+      "tailwind_classes": "w-64 h-64 rounded-full bg-[#121215] border border-[#1F1F24] shadow-[0_10px_40px_rgba(0,0,0,0.5),inset_0_2px_10px_rgba(255,255,255,0.03)] flex items-center justify-center relative"
+    },
+    "SoundModeChip": {
+      "type": "Selectable Card",
+      "style": "Minimalist rectangular or pill-shaped cards. Inactive: flat dark grey. Active: white border with crisp white text.",
+      "tailwind_classes_inactive": "bg-[#1C1C21] border border-transparent rounded-2xl p-4 flex flex-col items-center justify-center min-w-[100px]",
+      "tailwind_classes_active": "bg-[#1C1C21] border border-white rounded-2xl p-4 flex flex-col items-center justify-center min-w-[100px] shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+    },
+    "EQSlider": {
+      "type": "Vertical Slider",
+      "style": "Tall vertical slider. Track is very thin (e.g., 4px width). Thumb is a crisp white rectangle or pill.",
+      "tailwind_classes_track": "w-1.5 bg-[#1F1F24] rounded-full h-48 relative",
+      "tailwind_classes_fill": "w-full bg-white absolute bottom-0 rounded-full"
+    },
+    "TerminalLogView": {
+      "type": "Scrollable Console",
+      "style": "Pure black background, zero corner radius, monospaced text. No shadows.",
+      "tailwind_classes": "bg-[#050505] w-full flex-1 p-4 font-mono overflow-y-auto"
+    },
+    "BottomTabBar": {
+      "type": "Navigation",
+      "style": "Floating or frosted glass effect at the bottom.",
+      "tailwind_classes": "absolute bottom-0 w-full h-20 bg-[#0A0A0C]/85 backdrop-blur-xl border-t border-[#1F1F24] flex flex-row items-center justify-around pb-safe"
+    }
+  },
+  "icons": {
+    "library": "lucide-react-native (if React Native) or lucide-react (if Web)",
+    "usage": "Use stroke-width 1.5 for a premium, lightweight feel. Never use filled icons unless indicating an active tab state."
+  },
+  "media": {
+    "images": [
+      {
+        "category": "background_texture",
+        "url": "https://images.unsplash.com/photo-1666555038185-8323c553de64?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwxfHxkYXJrJTIwbWV0YWxsaWMlMjB0ZXh0dXJlfGVufDB8fHx8MTc4MDg3MjM1OHww&ixlib=rb-4.1.0&q=85",
+        "description": "Subtle dark metallic scratch texture to be used with very low opacity (5-10%) as a background layer overlay to give the app a hardware feel."
+      }
+    ]
+  },
+  "motion": {
+    "transitions": "Use react-native-reanimated for smooth layout transitions. 200ms ease-out for button presses (scale down to 0.95).",
+    "haptics": "CRITICAL: Since this mimics hardware, integrate exact haptic feedback (ImpactFeedbackStyle.Light) on every volume tick, EQ slider move, and chip selection."
+  },
+  "instructions_to_main_agent": [
+    "1. FRAMEWORK: Build using Expo & React Native. Use NativeWind for Tailwind styling. If the environment restricts to pure React JS web, build a mobile-first web app mimicking a native app (PWA style).",
+    "2. FONTS: Import Manrope and JetBrains Mono from Expo-Google-Fonts.",
+    "3. TESTING: Ensure EVERY interactive element has a 'data-testid' (if web) or 'testID' (if React Native) following kebab-case naming (e.g., testID='volume-dial', testID='mode-movie-chip').",
+    "4. ICONS: Use Lucide icons. Ensure they are crisp and well-aligned.",
+    "5. BLE LOGIC: For the BLE Explorer, mock the BleManager connection logic and GATT discovery if real hardware isn't available, but build the UI to accurately represent a real device scan (UUIDs, Services, Characteristics, Hex strings).",
+    "6. LANGUAGE: All UI text must be in FRENCH as requested by the user."
+  ]
+}
