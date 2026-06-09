@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend-only retest after Remote rebuild + new Atelier tab. Mobile viewport 390x844. All 5 tabs render (Télécommande / Égaliseur / Explorateur / Atelier / Bibliothèque). Remote screen: every required testID is present (32/32: power-btn, led-dimmer-btn, mute-btn, volume-down-btn, volume-up-btn, prev-btn, play-pause-btn, next-btn, source-cycle-btn, source-{opt,aux,bt,usb}-card, mode-{movie,music,voice,sport,game,night}-card, bass/midrange/treble/surround/prompt down+up-btn, usb-repeat-btn, eq-reset-btn, device-reset-btn). Pressing unbound power-btn shows app-toast '« Marche / Arrêt » non liée — associez une commande'. Mute toggles its active/danger state (verified visually — VolumeX icon + 'MUET' label appear in dial). Volume +2/+2 takes dial from 30 -> 34. Mode/source cards highlight correctly. Atelier: atelier-disconnected-card renders with the 'Découverte du protocole' header; goto-explorer-btn navigates to /explorer where ble-unavailable-card is shown — as expected, capture/builder UI is gated behind live BLE. Bibliothèque: all 32 bind-{control} rows render across all 6 groups (Alimentation & Volume, Lecture, Sources [5], Modes son [6], Réglages audio [10], Système [3 incl bind-led_dimmer / bind-eq_reset / bind-device_reset]); stats counters render; tapping bind-bass_up opens command-picker-modal. EQ regression OK (bass-down/up + treble-down/up buttons all present, presets render, sliders + save/reset visible). Explorateur regression OK (ble-unavailable-card on web, no crash). 0 console errors during the full run.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "(tabs)/_layout.tsx", "issues": ["Bottom tab labels 'Télécommande' and 'Bibliothèque' are visibly truncated to 'Télécomm…' and 'Bibliothè…' on a 390px-wide viewport (5 tabs, fontSize 9.5). Other 3 labels render fully. Not blocking; consider shortening labels (e.g. 'Remote' / 'Biblio') or reducing letterSpacing/horizontal padding. Reference: /app/frontend/app/(tabs)/_layout.tsx:21-25"]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auracontrol_api.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/iteration_1.json"
+  ],
+  "action_items": [
+    "(Cosmetic) Reduce/abbreviate the longest tab titles in (tabs)/_layout.tsx or lower tabBarLabelStyle.letterSpacing/padding so 'Télécommande' and 'Bibliothèque' aren't clipped at 390px width."
+  ],
+  "critical_code_review_comments": [
+    "remote.tsx (419 lines): clean composition with ControlButton/SelectCard/StepperRow/VolumeDial, every interactive element has a testID, isBound() drives the dashed-border 'unbound' visual everywhere, persisted state (volume/muted/mode/source) restored from storage on mount.",
+    "atelier.tsx correctly gates the capture + frame-builder UI behind ble.connectionState === 'connected'; web preview only ever sees atelier-disconnected-card — matches the agent-to-agent context note.",
+    "atelier.tsx useEffect on line 95 has a deliberate eslint-disable for exhaustive-deps with comment — acceptable.",
+    "controls.ts CONTROL_GROUPS lists exactly the 32 bindable slots the request enumerates (4 alim+vol, 4 lecture, 5 sources, 6 modes, 10 audio steppers, 3 système). Counts match.",
+    "All new files use StyleSheet.create, all text is wrapped in <Text>, no HTML elements, no deprecated expo-av/expo-barcode-scanner/expo-background-fetch references found."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not retested (per request)", "frontend": "100%"},
+  "seed_data_creation": "No seed data created this iteration — UI-only verification on the public preview URL.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend public URL: https://aura-control-2.preview.emergentagent.com (from frontend/.env EXPO_PUBLIC_BACKEND_URL). Mobile viewport 390x844. BLE flows are intentionally unavailable on web — Explorer shows ble-unavailable-card, Atelier shows atelier-disconnected-card; do NOT treat these as bugs. Atelier capture/builder UI (listen-toggle-btn, builder-frame-preview, builder-send-btn, builder-save-btn, capture-* rows, etc.) is ONLY mounted when ble.connectionState === 'connected' and therefore unreachable on the web preview. Default EQ preset 'Plat' is active after seed.",
+  "rca_of_issue": "N/A — no functional issues found. The only finding is a minor cosmetic label-clipping in the bottom tab bar."
+}

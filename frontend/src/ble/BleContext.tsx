@@ -31,6 +31,14 @@ export type ServiceInfo = { uuid: string; characteristics: CharInfo[] };
 
 export type LogLine = { id: string; ts: string; type: string; text: string };
 
+export type CaptureItem = {
+  id: string;
+  ts: string;
+  serviceUuid: string;
+  charUuid: string;
+  hex: string;
+};
+
 export type PermResult = { granted: boolean; canAskAgain: boolean };
 
 type ConnectionState = "disconnected" | "connecting" | "connected";
@@ -46,6 +54,7 @@ type BleContextValue = {
   logs: LogLine[];
   notifications: Record<string, string>;
   monitored: Record<string, boolean>;
+  captures: CaptureItem[];
   requestPermissions: () => Promise<PermResult>;
   startScan: () => Promise<void>;
   stopScan: () => void;
@@ -59,6 +68,9 @@ type BleContextValue = {
   ) => Promise<void>;
   readChar: (serviceUuid: string, charUuid: string) => Promise<string>;
   toggleNotify: (serviceUuid: string, charUuid: string) => Promise<void>;
+  monitorAll: () => void;
+  stopAllMonitors: () => void;
+  clearCaptures: () => void;
   addLog: (type: string, text: string) => void;
   clearLogs: () => void;
 };
@@ -93,6 +105,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [notifications, setNotifications] = useState<Record<string, string>>({});
   const [monitored, setMonitored] = useState<Record<string, boolean>>({});
+  const [captures, setCaptures] = useState<CaptureItem[]>([]);
 
   const addLog = useCallback((type: string, text: string) => {
     setLogs((prev) => {
@@ -269,6 +282,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
           setConnectionState("disconnected");
           setConnectedDevice(null);
           setServices([]);
+          monitorSubsRef.current = {};
           setMonitored({});
           addLog("disconnect", `${device.name} déconnecté`);
         });
@@ -292,6 +306,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
     setConnectionState("disconnected");
     setConnectedDevice(null);
     setServices([]);
+    monitorSubsRef.current = {};
     setMonitored({});
   }, [connectedDevice]);
 
@@ -343,18 +358,11 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
     [addLog, connectedDevice],
   );
 
-  const toggleNotify = useCallback(
-    async (serviceUuid: string, charUuid: string) => {
+  const beginMonitor = useCallback(
+    (serviceUuid: string, charUuid: string) => {
       const manager = managerRef.current;
-      if (!manager || !connectedDevice) throw new Error("Aucun appareil connecté");
-      const key = charUuid;
-      if (monitorSubsRef.current[key]) {
-        monitorSubsRef.current[key].remove?.();
-        delete monitorSubsRef.current[key];
-        setMonitored((m) => ({ ...m, [key]: false }));
-        addLog("notify", `⏹ Notifications arrêtées ${charUuid.slice(0, 8)}`);
-        return;
-      }
+      if (!manager || !connectedDevice) return;
+      if (monitorSubsRef.current[charUuid]) return;
       const sub = manager.monitorCharacteristicForDevice(
         connectedDevice.id,
         serviceUuid,
@@ -367,14 +375,77 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
           const hex = c?.value ? base64ToHex(c.value) : "";
           setNotifications((n) => ({ ...n, [charUuid]: hex }));
           addLog("notify", `◆ ${charUuid.slice(0, 8)} : ${hex}`);
+          if (hex) {
+            setCaptures((prev) =>
+              [
+                {
+                  id: nextId(),
+                  ts: new Date().toLocaleTimeString("fr-FR", { hour12: false }),
+                  serviceUuid,
+                  charUuid,
+                  hex,
+                },
+                ...prev,
+              ].slice(0, 100),
+            );
+          }
         },
       );
-      monitorSubsRef.current[key] = sub;
-      setMonitored((m) => ({ ...m, [key]: true }));
-      addLog("notify", `▶ Notifications activées ${charUuid.slice(0, 8)}`);
+      monitorSubsRef.current[charUuid] = sub;
+      setMonitored((m) => ({ ...m, [charUuid]: true }));
     },
     [addLog, connectedDevice],
   );
+
+  const stopMonitor = useCallback((charUuid: string) => {
+    const sub = monitorSubsRef.current[charUuid];
+    if (!sub) return;
+    sub.remove?.();
+    delete monitorSubsRef.current[charUuid];
+    setMonitored((m) => ({ ...m, [charUuid]: false }));
+  }, []);
+
+  const toggleNotify = useCallback(
+    async (serviceUuid: string, charUuid: string) => {
+      if (!managerRef.current || !connectedDevice) {
+        throw new Error("Aucun appareil connecté");
+      }
+      if (monitorSubsRef.current[charUuid]) {
+        stopMonitor(charUuid);
+        addLog("notify", `⏹ Notifications arrêtées ${charUuid.slice(0, 8)}`);
+        return;
+      }
+      beginMonitor(serviceUuid, charUuid);
+      addLog("notify", `▶ Notifications activées ${charUuid.slice(0, 8)}`);
+    },
+    [addLog, beginMonitor, stopMonitor, connectedDevice],
+  );
+
+  const monitorAll = useCallback(() => {
+    if (!connectedDevice) return;
+    let count = 0;
+    services.forEach((s) =>
+      s.characteristics.forEach((c) => {
+        if (c.isNotifiable && !monitorSubsRef.current[c.uuid]) {
+          beginMonitor(s.uuid, c.uuid);
+          count++;
+        }
+      }),
+    );
+    addLog(
+      "notify",
+      count > 0
+        ? `▶ Écoute de ${count} caractéristique(s) notifiable(s)`
+        : "Aucune caractéristique notifiable à écouter",
+    );
+  }, [services, beginMonitor, addLog, connectedDevice]);
+
+  const stopAllMonitors = useCallback(() => {
+    Object.keys(monitorSubsRef.current).forEach((uuid) => stopMonitor(uuid));
+    addLog("notify", "⏹ Écoute arrêtée");
+  }, [stopMonitor, addLog]);
+
+  const clearCaptures = useCallback(() => setCaptures([]), []);
 
   const value: BleContextValue = {
     bleAvailable,
@@ -387,6 +458,7 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
     logs,
     notifications,
     monitored,
+    captures,
     requestPermissions,
     startScan,
     stopScan,
@@ -395,6 +467,9 @@ export function BleProvider({ children }: { children: React.ReactNode }) {
     writeHex,
     readChar,
     toggleNotify,
+    monitorAll,
+    stopAllMonitors,
+    clearCaptures,
     addLog,
     clearLogs,
   };

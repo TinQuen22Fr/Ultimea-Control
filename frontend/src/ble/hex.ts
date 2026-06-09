@@ -65,6 +65,44 @@ export function base64ToHex(b64: string): string {
     .toUpperCase();
 }
 
+// ----- Ultimea Aura proprietary frame helpers -----
+// Decoded frame format: AA 01 00 02 <param> <value> <checksum>
+//   AA            = header
+//   01            = type (SET)
+//   00 02         = command group
+//   <param>       = which function (e.g. 03 = volume)
+//   <value>       = the value
+//   <checksum>    = sum of every byte EXCEPT the header (0xAA) and itself, mod 256
+export const AURA_PREFIX = "AA 01 00 02";
+
+export function formatHexBytes(bytes: number[]): string {
+  return bytes
+    .map((b) => (b & 0xff).toString(16).padStart(2, "0"))
+    .join(" ")
+    .toUpperCase();
+}
+
+// bytes = full frame WITHOUT the trailing checksum, header included at index 0.
+export function auraChecksum(bytes: number[]): number {
+  return bytes.slice(1).reduce((acc, b) => (acc + b) & 0xff, 0);
+}
+
+// Builds the complete frame (with auto checksum) from prefix + param + value hex.
+export function buildAuraFrame(
+  prefixHex: string,
+  paramHex: string,
+  valueHex: string,
+): { hex: string; checksum: number; bytes: number[] } {
+  const body = [
+    ...hexToBytes(prefixHex),
+    ...hexToBytes(paramHex),
+    ...hexToBytes(valueHex),
+  ];
+  const checksum = auraChecksum(body);
+  const bytes = [...body, checksum];
+  return { hex: formatHexBytes(bytes), checksum, bytes };
+}
+
 export function shortUuid(uuid: string): string {
   // Display the 16-bit short form when a UUID matches the BT base.
   const m = /^0000([0-9a-fA-F]{4})-0000-1000-8000-00805f9b34fb$/i.exec(uuid);
