@@ -20,7 +20,7 @@ export default function TabsLayout() {
         },
         tabBarLabelStyle: {
           fontFamily: fonts.medium,
-          fontSize: 9.5,
+          fontSize: 10,
           letterSpacing: 0,
         },
       }}
@@ -28,7 +28,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="remote"
         options={{
-          title: "Télécommande",
+          title: "Pilotage",
           tabBarIcon: ({ color }) => <Radio size={22} color={color} strokeWidth={1.8} />,
         }}
       />
@@ -60,7 +60,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="library"
         options={{
-          title: "Bibliothèque",
+          title: "Biblio",
           tabBarIcon: ({ color }) => <Layers size={22} color={color} strokeWidth={1.8} />,
         }}
       />
