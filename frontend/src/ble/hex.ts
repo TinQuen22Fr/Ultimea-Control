@@ -66,16 +66,15 @@ export function base64ToHex(b64: string): string {
 }
 
 // ----- Ultimea Aura proprietary frame helpers -----
-// Decoded from real Aura A40 HCI snoop logs:
-//   SET command : AA 01 00 02 <param> <value> <checksum>   (type byte = 01)
-//   STATUS      : AA 00 00 01 <value>          <checksum>   (type byte = 00)
-//   AA          = header
+// Decoded from real Aura A40 HCI snoop logs + live captures:
+//   COMMAND (write) : AA 01 00 02 <param> <value> <checksum>   (header AA)
+//   STATUS  (reply) : BB 01 00 02 <param> <value> <checksum>   (header BB, bar -> app)
 //   <param>     = which function (03 = VOLUME, confirmed)
 //   <value>     = the value
-//   <checksum>  = sum of EVERY byte (header AA included), mod 256.
-//                 SET frames (type 01) carry an additional -1 offset — confirmed
-//                 across all captured frames (e.g. AA 01 00 02 03 26 -> D5,
-//                 AA 01 00 02 09 01 -> B6, AA 01 00 02 07 00 -> B3).
+//   <checksum>  = seed 0xAA + the sum of every byte AFTER the header and type
+//                 bytes (index >= 2), up to the checksum. The header (AA/BB) and
+//                 the type byte are NOT summed. Verified on every real frame
+//                 (e.g. AA 01 00 02 03 26 -> D5, BB 01 00 02 02 01 -> AF).
 export const AURA_PREFIX = "AA 01 00 02";
 
 export function formatHexBytes(bytes: number[]): string {
@@ -85,10 +84,10 @@ export function formatHexBytes(bytes: number[]): string {
     .toUpperCase();
 }
 
-// bytes = full frame WITHOUT the trailing checksum, header (0xAA) at index 0.
+// bytes = full frame WITHOUT the trailing checksum, header at index 0, type at 1.
 export function auraChecksum(bytes: number[]): number {
-  let s = bytes.reduce((acc, b) => (acc + b) & 0xff, 0);
-  if (bytes[1] === 0x01) s = (s - 1) & 0xff; // SET frames are offset by -1
+  let s = 0xaa;
+  for (let i = 2; i < bytes.length; i += 1) s = (s + bytes[i]) & 0xff;
   return s;
 }
 
