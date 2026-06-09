@@ -402,8 +402,9 @@ export default function AtelierScreen() {
             <View style={styles.hintRow}>
               <Activity size={13} color={colors.textTertiary} strokeWidth={2} />
               <Text style={styles.hint}>
-                Astuce : envoyez une trame, observez la barre, puis incrémentez
-                « Param » pour balayer les fonctions.
+                Confirmé : Param 03 = Volume (valeur absolue). Astuce : envoyez une
+                trame, observez la barre, puis incrémentez « Param » (04, 05, 06, 07…)
+                pour découvrir Muet, Sources et Modes.
               </Text>
             </View>
           </>

@@ -11,12 +11,17 @@ l'app officielle. Le protocole Bluetooth (BLE) étant propriétaire, l'app perme
 - ⚠️ Le BLE (scan/connexion/notif/écriture) fonctionne uniquement sur **build Android réel**
   (pas Expo Go / aperçu web). L'APK est compilé via GitHub Actions (`.github/workflows/android.yml`).
 
-## Protocole décodé (Ultimea Aura A30/A40)
-- Format de trame : `AA 01 00 02 <param> <valeur> <checksum>`
-  - `AA` = en-tête · `01` = type (SET) · `00 02` = groupe de commande
-  - `<param>` = fonction (ex. `03` = volume) · `<valeur>` = valeur
-  - `<checksum>` = somme de tous les octets SAUF l'en-tête et le checksum, modulo 256
+## Protocole décodé (Ultimea Aura A30/A40) — confirmé sur logs HCI réels
+- **Commande SET** : `AA 01 00 02 <param> <valeur> <checksum>` (octet de type = 01)
+- **Statut** : `AA 00 00 01 <valeur> <checksum>` (octet de type = 00)
+  - `AA` = en-tête · `<param>` = fonction (**03 = Volume**, confirmé) · `<valeur>` = valeur
+  - `<checksum>` = somme de **tous les octets (en-tête AA inclus)** modulo 256 ;
+    les trames SET (type 01) portent un décalage de **−1** (vérifié sur 26/26 trames).
 - Helpers : `/app/frontend/src/ble/hex.ts` → `AURA_PREFIX`, `auraChecksum`, `buildAuraFrame`.
+- ⚠️ La télécommande physique fournie est **infrarouge** : ses appuis ne transitent PAS par
+  le Bluetooth du téléphone et n'apparaissent donc pas dans le log HCI. Pour capturer
+  Muet/Sources/Modes, il faut appuyer sur ces commandes **dans l'app officielle** (ou les
+  découvrir en direct via le Constructeur de trames de l'Atelier).
 
 ## Fonctionnalités livrées
 1. **Pilotage (Télécommande)** — calquée 1:1 sur la télécommande physique :
