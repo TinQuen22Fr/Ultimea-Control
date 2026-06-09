@@ -48,14 +48,14 @@ jobs:
       - name: Générer le projet natif (expo prebuild)
         run: npx expo prebuild --platform android --clean --no-install
 
-      - name: Build APK (debug, arm64-v8a uniquement = rapide)
+      - name: Build APK (release, arm64-v8a = autonome + rapide)
         working-directory: frontend/android
-        run: ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=arm64-v8a
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
       - name: Publier l'APK en artefact
         uses: actions/upload-artifact@v4
         with:
-          name: AuraControl-debug-apk
-          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          name: AuraControl-release-apk
+          path: frontend/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
