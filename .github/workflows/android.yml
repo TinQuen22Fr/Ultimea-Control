@@ -1,0 +1,63 @@
+name: Build Android APK
+
+# Lancement manuel (onglet Actions -> Run workflow) ou à chaque push sur main/master
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # URL du backend, injectée dans le bundle au moment du build.
+      # Définissez-la dans : Settings -> Secrets and variables -> Actions -> New repository secret
+      # Nom du secret : EXPO_PUBLIC_BACKEND_URL
+      EXPO_PUBLIC_BACKEND_URL: ${{ secrets.EXPO_PUBLIC_BACKEND_URL }}
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Installer les composants SDK requis
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006"
+
+      - name: Installer les dépendances JS
+        run: yarn install --frozen-lockfile
+
+      - name: Générer le projet natif (expo prebuild)
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Build APK (debug, arm64-v8a uniquement = rapide)
+        working-directory: frontend/android
+        run: ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Publier l'APK en artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuraControl-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
