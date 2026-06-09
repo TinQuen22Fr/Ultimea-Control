@@ -171,9 +171,9 @@ class TestProfiles:
         names = {p["name"] for p in data}
         expected = {"Plat", "Cinéma", "Musique", "Voix", "Boost Basses"}
         assert expected.issubset(names), f"Missing seeded presets, got {names}"
-        # Plat must be active by default
+        # Plat is seeded as a non-deletable default. (We don't assert is_active
+        # here: a real user / concurrent test may have activated another preset.)
         plat = next(p for p in data if p["name"] == "Plat")
-        assert plat["is_active"] is True
         assert plat["is_default"] is True
         TestProfiles.default_ids = [p["id"] for p in data if p["is_default"]]
 
@@ -336,6 +336,41 @@ class TestMacros:
     def test_delete_macro(self, client):
         r = client.delete(f"{API}/macros/{TestMacros.macro_id}")
         assert r.status_code == 200
+
+
+# ----------------------------- Export -----------------------------
+class TestExport:
+    def test_create_and_get_export(self, client):
+        payload = {
+            "device_name": "Aura A40 (test)",
+            "note": "pytest export",
+            "captures": [
+                {"ts": "12:00:00", "char_uuid": "ffe1", "hex": "AA 00 00 01 0A B5"}
+            ],
+            "commands": [
+                {
+                    "name": "Volume 20",
+                    "category": "volume",
+                    "char_uuid": "ffe1",
+                    "payload_hex": "AA 01 00 02 03 14 C3",
+                }
+            ],
+        }
+        r = client.post(f"{API}/export", json=payload)
+        assert r.status_code == 200, r.text
+        created = r.json()
+        _assert_no_objectid(created)
+        assert created["id"]
+        assert len(created["captures"]) == 1
+        assert len(created["commands"]) == 1
+
+        # GET returns the most recent export
+        r2 = client.get(f"{API}/export")
+        assert r2.status_code == 200, r2.text
+        latest = r2.json()
+        assert latest is not None
+        assert latest["id"] == created["id"]
+        assert latest["device_name"] == "Aura A40 (test)"
 
 
 # ----------------------------- Cleanup -----------------------------

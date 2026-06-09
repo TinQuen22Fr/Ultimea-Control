@@ -30,29 +30,41 @@ l'app officielle. Le protocole Bluetooth (BLE) étant propriétaire, l'app perme
    Game, Night) · Réglages audio en steppers (Basses, Médiums, Aigus, Surround, Prompt Tone) ·
    Système (USB Repeat, EQ Reset, Device Reset). Chaque bouton envoie la commande BLE liée ;
    les boutons non liés affichent un toast d'invite.
+   - **Volume en valeur absolue** : le dial et Volume ± envoient `AA 01 00 02 03 <valeur>`
+     (Param 03 confirmé), la valeur 0–100 du dial étant mappée sur 0..`AURA_VOLUME_MAX` (=38,
+     ajustable dans `controls.ts`). Cible d'écriture = char d'une commande Volume liée, sinon
+     1er char inscriptible. Envoi anti-rebond (180 ms).
 2. **Atelier (découverte du protocole, sans PC)** :
    - **Capture** : écoute toutes les caractéristiques notifiables ; l'utilisateur appuie sur
-     sa télécommande physique et le code reçu s'affiche → « Enregistrer » en 1 clic.
+     sa télécommande (BT) et le code reçu s'affiche → « Enregistrer » en 1 clic.
+   - **Enregistrer + Associer** : à l'enregistrement, on peut choisir directement le bouton
+     (Muet, AUX, Movie…) auquel lier la commande, sans repasser par la Bibliothèque.
    - **Constructeur de trames** : préfixe `AA 01 00 02` éditable + Param + Valeur, **checksum
      calculé automatiquement**, sélection de la caractéristique d'écriture, Envoyer / Enregistrer,
      incrément ±1 pour balayer les fonctions.
+   - **Exporter** : bouton « Exporter » → compile captures + commandes en un seul lot, ouvre le
+     partage natif (Share) ET enregistre côté serveur (`POST /api/export`) pour relecture directe.
 3. **Explorateur BLE** : scan, connexion, exploration GATT, Lire/Tester(HEX)/Notifier, terminal de logs.
 4. **Égaliseur** : 5 presets seedés, réglage direct Basses/Aigus, courbe 5 bandes, enregistrement de presets.
 5. **Bibliothèque** : commandes enregistrées + **assignation** des commandes aux ~32 boutons
    (bindings), suppression (cascade sur les bindings), stats.
 
 ## Backend (FastAPI + MongoDB)
-Collections : `commands`, `bindings`, `profiles` (seed 5), `devices`, `logs`, `macros`.
+Collections : `commands`, `bindings`, `profiles` (seed 5), `devices`, `logs`, `macros`, `exports`.
 CRUD complet, un seul profil actif à la fois, presets par défaut non supprimables.
-Endpoints préfixés `/api`. Aucune authentification.
+Export : `POST /api/export` (enregistre un lot captures+commandes), `GET /api/export` (dernier lot),
+`GET /api/exports` (liste). Endpoints préfixés `/api`. Aucune authentification.
 
 ## État (juin 2026)
-- MVP + refonte télécommande + Atelier : testés.
-  - Backend : 31/31 pytest ✓ + flux create→bind→cascade-delete vérifié via URL externe ✓.
-  - Frontend (aperçu web, 390x844) : 5 onglets, refonte Pilotage, Atelier (état déconnecté +
-    navigation), Bibliothèque (32 bindings), EQ — tous validés par l'agent de test (itération 2).
-- ⚠️ Les flux BLE en direct (capture par notifications, envoi de trames) ne sont validables que
-  sur **build Android réel** avec la barre de son — à confirmer par l'utilisateur.
+- MVP + refonte télécommande + Atelier + export + volume absolu : testés.
+  - Backend : 32/32 pytest ✓ (dont test export) + flux create→bind→cascade-delete + POST/GET
+    `/api/export` vérifiés via URL externe ✓.
+  - Frontend (aperçu web, 390x844) : 5 onglets, refonte Pilotage (volume +), Atelier (état
+    déconnecté + navigation), lint propre, aucun crash — smoke test OK.
+- ✅ La télécommande de la barre est en **Bluetooth** (pas infrarouge) : l'analyseur Atelier
+  capture bien les codes (confirmé par l'utilisateur en conditions réelles).
+- ⚠️ Les flux BLE en direct (capture, envoi de trames, volume absolu, export via Share) sont
+  pleinement validables sur **build Android réel** (APK GitHub Actions à recompiler).
 
 ## Notes de découverte
 - **Constructeur de trames** = méthode fiable (sondage actif : on envoie, on observe la barre).

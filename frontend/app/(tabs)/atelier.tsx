@@ -3,6 +3,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +20,7 @@ import {
   Plus,
   Save,
   Send,
+  Share2,
   Trash2,
 } from "lucide-react-native";
 
@@ -163,7 +165,7 @@ export default function AtelierScreen() {
   const handleSave = async (payload: SaveFramePayload) => {
     if (!saveCtx) return;
     try {
-      await api.createCommand({
+      const cmd = await api.createCommand({
         name: payload.name,
         category: payload.category,
         service_uuid: saveCtx.serviceUuid,
@@ -174,12 +176,67 @@ export default function AtelierScreen() {
             ? "withoutResponse"
             : "withResponse",
       });
-      toast.show(`Commande « ${payload.name} » enregistrée`, "success");
+      if (payload.bindControl) {
+        await api.setBinding(payload.bindControl, cmd.id);
+        toast.show(`« ${payload.name} » enregistrée et associée`, "success");
+      } else {
+        toast.show(`Commande « ${payload.name} » enregistrée`, "success");
+      }
       setSaveCtx(null);
     } catch {
       toast.show("Échec de l'enregistrement", "error");
     }
   };
+
+  const [exporting, setExporting] = useState(false);
+  const onExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const commands = await api.getCommands();
+      const bundle = {
+        device_name: ble.connectedDevice?.name ?? null,
+        note: `Export AuraControl ${new Date().toLocaleString("fr-FR")}`,
+        captures: ble.captures.map((c) => ({
+          ts: c.ts,
+          char_uuid: c.charUuid,
+          hex: c.hex,
+        })),
+        commands: commands.map((c) => ({
+          name: c.name,
+          category: c.category,
+          char_uuid: c.characteristic_uuid ?? null,
+          payload_hex: c.payload_hex,
+        })),
+      };
+      const saved = await api.createExport(bundle);
+      const lines: string[] = [];
+      lines.push(`AuraControl — Export (${bundle.device_name ?? "appareil ?"})`);
+      lines.push(`ID: ${saved.id}`);
+      lines.push("");
+      lines.push(`== CODES CAPTURÉS (${bundle.captures.length}) ==`);
+      bundle.captures.forEach((c) =>
+        lines.push(`${c.ts}  ${(c.char_uuid ?? "").slice(0, 8)}  ${c.hex}`),
+      );
+      lines.push("");
+      lines.push(`== COMMANDES ENREGISTRÉES (${bundle.commands.length}) ==`);
+      bundle.commands.forEach((c) =>
+        lines.push(`${c.name} [${c.category}]  ${c.payload_hex}`),
+      );
+      try {
+        await Share.share({ message: lines.join("\n"), title: "Export AuraControl" });
+      } catch {
+        // user dismissed the share sheet — export is still saved server-side
+      }
+      toast.show(
+        `Export prêt : ${bundle.captures.length} codes, ${bundle.commands.length} cmds`,
+        "success",
+      );
+    } catch (e: any) {
+      toast.show(`Échec export : ${e?.message || e}`, "error");
+    } finally {
+      setExporting(false);
+    }
+  }, [ble.captures, ble.connectedDevice, toast]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -244,16 +301,32 @@ export default function AtelierScreen() {
               <Text style={styles.subOverline}>
                 CODES CAPTURÉS ({ble.captures.length})
               </Text>
-              {ble.captures.length > 0 ? (
+              <View style={styles.headBtns}>
                 <Pressable
-                  testID="clear-captures-btn"
-                  onPress={ble.clearCaptures}
-                  style={({ pressed }) => [styles.clearBtn, pressed && styles.pressed]}
+                  testID="export-btn"
+                  onPress={onExport}
+                  disabled={exporting}
+                  style={({ pressed }) => [
+                    styles.exportBtn,
+                    (pressed || exporting) && styles.pressed,
+                  ]}
                 >
-                  <Trash2 size={13} color={colors.textTertiary} strokeWidth={2} />
-                  <Text style={styles.clearText}>Effacer</Text>
+                  <Share2 size={13} color="#000" strokeWidth={2.2} />
+                  <Text style={styles.exportText}>
+                    {exporting ? "Export…" : "Exporter"}
+                  </Text>
                 </Pressable>
-              ) : null}
+                {ble.captures.length > 0 ? (
+                  <Pressable
+                    testID="clear-captures-btn"
+                    onPress={ble.clearCaptures}
+                    style={({ pressed }) => [styles.clearBtn, pressed && styles.pressed]}
+                  >
+                    <Trash2 size={13} color={colors.textTertiary} strokeWidth={2} />
+                    <Text style={styles.clearText}>Effacer</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
 
             {ble.captures.length === 0 ? (
@@ -534,6 +607,17 @@ const styles = StyleSheet.create({
   },
   clearBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4 },
   clearText: { color: colors.textTertiary, fontFamily: fonts.medium, fontSize: 12 },
+  headBtns: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  exportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.white,
+    borderRadius: radius.full,
+    paddingVertical: 5,
+    paddingHorizontal: spacing.md,
+  },
+  exportText: { color: "#000", fontFamily: fonts.bold, fontSize: 12 },
   empty: {
     color: colors.textTertiary,
     fontFamily: fonts.regular,

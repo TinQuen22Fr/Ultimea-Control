@@ -3,7 +3,15 @@ import { useCallback, useState } from "react";
 import { api, Command } from "@/src/api/client";
 import { useBle } from "@/src/ble/BleContext";
 import { useToast } from "@/src/components/ToastProvider";
-import { controlLabel } from "@/src/constants/controls";
+import {
+  AURA_PREFIX,
+  buildAuraFrame,
+} from "@/src/ble/hex";
+import {
+  AURA_VOLUME_MAX,
+  AURA_VOLUME_PARAM,
+  controlLabel,
+} from "@/src/constants/controls";
 
 // Centralises "press a control -> send the bound BLE command" logic,
 // shared by the Remote and EQ screens.
@@ -84,5 +92,63 @@ export function useController() {
     [bindings, commands, ble, toast],
   );
 
-  return { bindings, commands, reload, sendControl, isBound };
+  // Find the best characteristic to write Aura frames to: prefer the char of a
+  // bound volume command, otherwise the first writable char on the connected device.
+  const volumeWriteTarget = useCallback(() => {
+    for (const key of ["volume_set", "volume_up", "volume_down"]) {
+      const cmd = commands.find((c) => c.id === bindings[key]);
+      if (cmd?.service_uuid && cmd?.characteristic_uuid) {
+        return {
+          service: cmd.service_uuid,
+          char: cmd.characteristic_uuid,
+          withResponse: cmd.write_type === "withResponse",
+        };
+      }
+    }
+    for (const s of ble.services) {
+      for (const ch of s.characteristics) {
+        if (ch.isWritableWithResponse || ch.isWritableWithoutResponse) {
+          return { service: s.uuid, char: ch.uuid, withResponse: ch.isWritableWithResponse };
+        }
+      }
+    }
+    return null;
+  }, [commands, bindings, ble.services]);
+
+  // Sends the volume as an ABSOLUTE value: AA 01 00 02 03 <value> <chk>.
+  // `level` is the 0–100 dial value, mapped onto 0..AURA_VOLUME_MAX device units.
+  const sendVolumeAbsolute = useCallback(
+    async (level: number): Promise<boolean> => {
+      if (ble.connectionState !== "connected") return false;
+      const target = volumeWriteTarget();
+      if (!target) {
+        toast.show("Aucune cible d'écriture — associez une commande Volume", "warn");
+        return false;
+      }
+      const dev = Math.max(
+        0,
+        Math.min(AURA_VOLUME_MAX, Math.round((level / 100) * AURA_VOLUME_MAX)),
+      );
+      const valueHex = dev.toString(16).padStart(2, "0");
+      const frame = buildAuraFrame(AURA_PREFIX, AURA_VOLUME_PARAM, valueHex).hex;
+      try {
+        await ble.writeHex(target.service, target.char, frame, target.withResponse);
+        api
+          .createLog({
+            action: "write",
+            characteristic_uuid: target.char,
+            value_hex: frame,
+            message: `Volume ${dev}/${AURA_VOLUME_MAX}`,
+          })
+          .catch(() => {});
+        return true;
+      } catch (e: any) {
+        toast.show(`Échec volume : ${e?.message || e}`, "error");
+        return false;
+      }
+    },
+    [ble, volumeWriteTarget, toast],
+  );
+
+  return { bindings, commands, reload, sendControl, sendVolumeAbsolute, isBound };
 }

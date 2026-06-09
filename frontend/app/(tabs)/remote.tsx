@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -35,7 +35,7 @@ const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
 export default function RemoteScreen() {
   const { bleAvailable } = useBle();
-  const { reload, sendControl, isBound } = useController();
+  const { reload, sendControl, sendVolumeAbsolute, isBound } = useController();
 
   const [volume, setVolume] = useState(30);
   const [muted, setMuted] = useState(false);
@@ -58,23 +58,33 @@ export default function RemoteScreen() {
     }, [reload]),
   );
 
+  const volTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queueVolume = useCallback(
+    (v: number) => {
+      if (volTimer.current) clearTimeout(volTimer.current);
+      volTimer.current = setTimeout(() => {
+        sendVolumeAbsolute(v);
+      }, 180);
+    },
+    [sendVolumeAbsolute],
+  );
+
   const onVolumeChange = (v: number) => {
     setVolume(v);
     storage.setItem("ac_volume", v);
+    queueVolume(v);
   };
 
   const onVolUp = () => {
-    onVolumeChange(clamp(volume + 2));
     if (muted) {
       setMuted(false);
       storage.setItem("ac_muted", false);
     }
-    sendControl("volume_up");
+    onVolumeChange(clamp(volume + 2));
   };
 
   const onVolDown = () => {
     onVolumeChange(clamp(volume - 2));
-    sendControl("volume_down");
   };
 
   const onMute = () => {
@@ -155,7 +165,7 @@ export default function RemoteScreen() {
             icon={<Minus size={22} color={colors.textPrimary} strokeWidth={2.2} />}
             onPress={onVolDown}
             size={56}
-            bound={isBound("volume_down")}
+            bound
             testID="volume-down-btn"
           />
           <VolumeDial value={volume} muted={muted} onChange={onVolumeChange} size={224} />
@@ -163,7 +173,7 @@ export default function RemoteScreen() {
             icon={<Plus size={22} color={colors.textPrimary} strokeWidth={2.2} />}
             onPress={onVolUp}
             size={56}
-            bound={isBound("volume_up")}
+            bound
             testID="volume-up-btn"
           />
         </View>

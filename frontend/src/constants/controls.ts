@@ -120,6 +120,12 @@ export function controlLabel(key: string): string {
 // The soundbar we target. Used to highlight matching devices during scan.
 export const TARGET_DEVICE_HINTS = ["aura", "ultimea", "a40", "a30"];
 
+// Volume is sent as an ABSOLUTE value on Param 03 (confirmed from HCI logs).
+// Highest value observed in real captures was 0x26 (38). The dial (0–100) is
+// mapped linearly onto 0..AURA_VOLUME_MAX. Adjust if the bar's real max differs.
+export const AURA_VOLUME_MAX = 38;
+export const AURA_VOLUME_PARAM = "03";
+
 export const COMMAND_CATEGORIES = [
   { key: "volume", label: "Volume" },
   { key: "mute", label: "Muet" },

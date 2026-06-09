@@ -383,6 +383,38 @@ async def delete_macro(macro_id: str):
     return {"success": True}
 
 
+# ----------------------------- Export -----------------------------
+class ExportCreate(BaseModel):
+    device_name: Optional[str] = None
+    note: Optional[str] = None
+    captures: List[Any] = Field(default_factory=list)
+    commands: List[Any] = Field(default_factory=list)
+
+
+class ExportBundle(ExportCreate):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    created_at: str = Field(default_factory=now_iso)
+
+
+@api_router.post("/export", response_model=ExportBundle)
+async def create_export(payload: ExportCreate):
+    bundle = ExportBundle(**payload.dict())
+    await db.exports.insert_one(bundle.dict())
+    return bundle
+
+
+@api_router.get("/export", response_model=Optional[ExportBundle])
+async def get_latest_export():
+    doc = await db.exports.find_one({}, {"_id": 0}, sort=[("created_at", -1)])
+    return ExportBundle(**doc) if doc else None
+
+
+@api_router.get("/exports", response_model=List[ExportBundle])
+async def list_exports(limit: int = 20):
+    docs = await db.exports.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return [ExportBundle(**d) for d in docs]
+
+
 # ----------------------------- Seed -----------------------------
 DEFAULT_PROFILES = [
     {

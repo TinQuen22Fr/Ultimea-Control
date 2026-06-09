@@ -84,6 +84,15 @@ export type Macro = {
   created_at: string;
 };
 
+export type ExportBundle = {
+  id: string;
+  device_name?: string | null;
+  note?: string | null;
+  captures: { ts: string; char_uuid?: string | null; hex: string }[];
+  commands: { name: string; category: string; char_uuid?: string | null; payload_hex: string }[];
+  created_at: string;
+};
+
 export const api = {
   // Commands
   getCommands: (category?: string) =>
@@ -137,4 +146,9 @@ export const api = {
     request<Macro>(`/macros/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteMacro: (id: string) =>
     request<{ success: boolean }>(`/macros/${id}`, { method: "DELETE" }),
+
+  // Export
+  createExport: (data: Partial<ExportBundle>) =>
+    request<ExportBundle>("/export", { method: "POST", body: JSON.stringify(data) }),
+  getExport: () => request<ExportBundle | null>("/export"),
 };

@@ -12,13 +12,14 @@ import { KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bookmark } from "lucide-react-native";
 
-import { COMMAND_CATEGORIES } from "@/src/constants/controls";
+import { COMMAND_CATEGORIES, CONTROL_GROUPS } from "@/src/constants/controls";
 import { colors, fonts, radius, spacing } from "@/src/theme/colors";
 
 export type SaveFramePayload = {
   name: string;
   category: string;
   hex: string;
+  bindControl: string | null;
 };
 
 type Props = {
@@ -45,11 +46,13 @@ export function SaveFrameModal({
   const insets = useSafeAreaInsets();
   const [name, setName] = useState(defaultName);
   const [category, setCategory] = useState(defaultCategory);
+  const [bindControl, setBindControl] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
       setName(defaultName);
       setCategory(defaultCategory);
+      setBindControl(null);
     }
   }, [visible, defaultName, defaultCategory]);
 
@@ -57,7 +60,7 @@ export function SaveFrameModal({
 
   const handleSave = () => {
     if (!name.trim() || !hex) return;
-    onSave({ name: name.trim(), category, hex });
+    onSave({ name: name.trim(), category, hex, bindControl });
   };
 
   return (
@@ -107,6 +110,41 @@ export function SaveFrameModal({
                 );
               })}
             </View>
+
+            <Text style={[styles.label, styles.mt]}>
+              ASSOCIER À UN BOUTON (OPTIONNEL)
+            </Text>
+            {bindControl ? (
+              <Pressable
+                testID="save-frame-bind-clear"
+                onPress={() => setBindControl(null)}
+                style={styles.clearBindRow}
+              >
+                <Text style={styles.clearBindText}>Retirer l&apos;association</Text>
+              </Pressable>
+            ) : null}
+            {CONTROL_GROUPS.map((g) => (
+              <View key={g.title} style={styles.bindGroup}>
+                <Text style={styles.bindGroupTitle}>{g.title}</Text>
+                <View style={styles.chipsWrap}>
+                  {g.controls.map((ctrl) => {
+                    const active = bindControl === ctrl.key;
+                    return (
+                      <Pressable
+                        key={ctrl.key}
+                        testID={`save-frame-bind-${ctrl.key}`}
+                        onPress={() => setBindControl(active ? null : ctrl.key)}
+                        style={[styles.chip, active && styles.chipActive]}
+                      >
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                          {ctrl.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
           </ScrollView>
 
           <View style={styles.actions}>
@@ -189,6 +227,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   chipsWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
+  bindGroup: { marginTop: spacing.md },
+  bindGroupTitle: {
+    color: colors.textTertiary,
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  clearBindRow: { paddingVertical: 6, marginTop: 4 },
+  clearBindText: { color: colors.disconnected, fontFamily: fonts.semibold, fontSize: 13 },
   chip: {
     backgroundColor: colors.surface,
     borderWidth: 1,
